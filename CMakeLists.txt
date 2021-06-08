@@ -8,6 +8,10 @@ add_executable(generator
     "src/generator.cpp"
     )
 
+add_executable(solver
+    "src/solver.cpp"
+    )
+
 set_property(GLOBAL PROPERTY CXX_STANDARD 17)
 include(CheckCXXCompilerFlag)
 
