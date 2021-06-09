@@ -17,7 +17,8 @@ int main(void)
     Matrix<int> mx(cols, rows);
 
     mx.initFromString(matrixData);
-    std::cout << mx.at(5, 15);
+    unsigned int shapesNb = mx.findNbShapes();
+    std::cout << shapesNb;
 
     return 0;
 }

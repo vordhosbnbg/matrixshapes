@@ -12,7 +12,7 @@ add_executable(solver
     "src/solver.cpp"
     )
 
-set_property(GLOBAL PROPERTY CXX_STANDARD 17)
+set_property(GLOBAL PROPERTY CXX_STANDARD 20)
 include(CheckCXXCompilerFlag)
 
 CHECK_CXX_COMPILER_FLAG("-march=native" HAS_FLAG_MARCH_NATIVE)
