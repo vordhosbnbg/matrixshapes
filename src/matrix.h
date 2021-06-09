@@ -7,7 +7,7 @@
 #include <list>
 #include <deque>
 
-template<class T>
+template<typename MatrixValueType, typename VisitedNodesType, typename NodeAddrType>
 class Matrix
 {
 public:
@@ -21,9 +21,8 @@ public:
 
     struct Node
     {
-        unsigned int x = 0;
-        unsigned int y = 0;
-
+        NodeAddrType x = 0;
+        NodeAddrType y = 0;
     };
 
     unsigned int getAddress(const Node& it) const
@@ -36,7 +35,7 @@ public:
         bool status = false;
         if(address < matrixSize)
         {
-            std::ldiv_t res = std::div((long)address, (long)cols);
+            std::div_t res = std::div((int)address, (int)cols);
             it.x = res.rem;
             it.y = res.quot;
 
@@ -54,7 +53,7 @@ public:
         {
             std::transform(input.begin(), input.end(), memory.begin(), [](const char& c)
             {
-                return (T)(c - '0');
+                return (MatrixValueType)(c - '0');
             });
         }
         return status;
@@ -109,19 +108,22 @@ public:
         return ret;
     }
 
-    void expandShapeBFS(std::vector<unsigned char>& visitedNodes, unsigned int startIndex, unsigned int shapeId) const
+    void expandShapeBFS(std::vector<Node>& edgeNodes,
+                        std::vector<VisitedNodesType>& visitedNodes,
+                        unsigned int startIndex) const
     {
-        std::deque<Node> edgeNodes;
+        edgeNodes.clear();
         Node& startNode = edgeNodes.emplace_back();
         setAddress(startNode, startIndex);
 
-        while(!edgeNodes.empty())
+        size_t expansionIndex = 0;
+        while(expansionIndex < edgeNodes.size())
         {
-            // pop a node from the front of the queue
+            // get a node from the front of the queue
             // explore its adjacent nodes if not visited
             // mark them as visited
             // and add them as edges to the back of the queue if marked with 1
-            Node& node = edgeNodes.front();
+            Node node = edgeNodes[expansionIndex++];
 
             if(hasRight(node))
             {
@@ -175,14 +177,15 @@ public:
                     }
                 }
             }
-            edgeNodes.pop_front();
         }
     }
 
     unsigned int findNbShapes() const
     {
         unsigned int nbShapes = 0;
-        std::vector<unsigned char> visitedNodes;
+        std::vector<VisitedNodesType> visitedNodes;
+        std::vector<Node> edgeNodesWorkspace;
+        edgeNodesWorkspace.reserve(matrixSize);
         visitedNodes.resize(matrixSize);
 
         for(unsigned int idx = 0; idx < visitedNodes.size(); ++idx)
@@ -194,7 +197,8 @@ public:
                 if(memory[idx])
                 {
                     // if marked 1 - new shape BFS expansion starts from it
-                    expandShapeBFS(visitedNodes, idx, ++nbShapes);
+                    expandShapeBFS(edgeNodesWorkspace, visitedNodes, idx);
+                    ++nbShapes;
                 }
             }
         }
@@ -202,12 +206,12 @@ public:
         return nbShapes;
     }
 
-    T& at(unsigned int x, unsigned int y)
+    MatrixValueType& at(unsigned int x, unsigned int y)
     {
         return memory[y*cols + x];
     }
 
-    T& at(const Node& it)
+    MatrixValueType& at(const Node& it)
     {
         return at(it.x, it.y);
     }
@@ -216,5 +220,5 @@ protected:
     unsigned int cols = 0;
     unsigned int rows = 0;
     size_t matrixSize = 0;
-    std::vector<T> memory;
+    std::vector<MatrixValueType> memory;
 };
