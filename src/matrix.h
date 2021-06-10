@@ -11,6 +11,14 @@ template<typename MatrixValueType, typename VisitedNodesType, typename NodeAddrT
 class Matrix
 {
 public:
+    enum class Direction
+    {
+        RIGHT,
+        LEFT,
+        DOWN,
+        UP
+    };
+
     Matrix(unsigned int x, unsigned int y) :
         cols(x),
         rows(y),
@@ -25,11 +33,13 @@ public:
         NodeAddrType y = 0;
     };
 
+    // get the offset of a node
     unsigned int getAddress(const Node& it) const
     {
         return (it.y*cols + it.x);
     }
 
+    // set node's coordinates from an address
     bool setAddress(Node& it, unsigned int address) const
     {
         bool status = false;
@@ -45,7 +55,7 @@ public:
         return status;
     }
 
-
+    // store a string of '0's and '1's as 0/1 integer data
     bool initFromString(const std::string& input)
     {
         bool status = false;
@@ -60,54 +70,76 @@ public:
     }
 
 
-    bool hasUp(const Node& it) const
+    // the following checks if a node can "exist" spatially in the corresponding direction
+    // and if it's safe to return a node from it
+    bool existsInDirection(const Node& it, Direction direction) const
     {
-        return(it.y > 0);
+        switch (direction)
+        {
+            case Direction::RIGHT:
+                return((it.x < matrixSize - 1) && ((it.x + 1) % cols));
+            case Direction::LEFT:
+                return((it.x > 0) && (it.x % cols));
+            case Direction::DOWN:
+                return(getAddress(it) + cols < matrixSize);
+            case Direction::UP:
+                return(it.y > 0);
+        };
+
+        return false;
     }
 
-    bool hasDown(const Node& it) const
-    {
-        return(getAddress(it) + cols < matrixSize);
-    }
-
-    bool hasLeft(const Node& it) const
-    {
-        return((it.x > 0) && (it.x % cols));
-    }
-
-    bool hasRight(const Node& it) const
-    {
-        return((it.x < matrixSize - 1) && ((it.x + 1) % cols));
-    }
-
-    Node getRight(const Node& it) const
+    // the following returns a new node in the corresponding direction
+    // they are not safe and should be called after checking bounds
+    Node getAdjacent(const Node& it, Direction direction) const
     {
         Node ret = it;
-        ++ret.x;
+        switch (direction)
+        {
+            case Direction::RIGHT:
+                ++ret.x;
+                break;
+            case Direction::LEFT:
+                --ret.x;
+                break;
+            case Direction::DOWN:
+                ++ret.y;
+                break;
+            case Direction::UP:
+                --ret.y;
+                break;
+        }
+
         return ret;
     }
 
-    Node getLeft(const Node& it) const
+    void exploreDirection(std::vector<Node>& edgeNodes,
+                          std::vector<VisitedNodesType>& visitedNodes,
+                          const Node& node,
+                          Direction direction) const
     {
-        Node ret = it;
-        --ret.x;
-        return ret;
+        if(existsInDirection(node, direction))
+        {
+            Node adjacentNode = getAdjacent(node, direction);
+            unsigned int addr = getAddress(adjacentNode);
+
+            // get the adjacent node and if not visited
+            if(!visitedNodes[addr])
+            {
+                // mark as visited
+                visitedNodes[addr] = 1;
+                if(memory[addr])
+                {
+                    // if it has 1, place it to the back of the queue
+                    edgeNodes.emplace_back(adjacentNode);
+                }
+            }
+        }
     }
 
-    Node getUp(const Node& it) const
-    {
-        Node ret = it;
-        --ret.y;
-        return ret;
-    }
-
-    Node getDown(const Node& it) const
-    {
-        Node ret = it;
-        ++ret.y;
-        return ret;
-    }
-
+    // starting from a specific point expand using BFS
+    // and visit all connected nodes forming a shape
+    // here edgeNodes is passed from the caller to reduce memory allocations
     void expandShapeBFS(std::vector<Node>& edgeNodes,
                         std::vector<VisitedNodesType>& visitedNodes,
                         unsigned int startIndex) const
@@ -116,6 +148,7 @@ public:
         Node& startNode = edgeNodes.emplace_back();
         setAddress(startNode, startIndex);
 
+        // expansionIndex marks the node that we are currently exploring
         size_t expansionIndex = 0;
         while(expansionIndex < edgeNodes.size())
         {
@@ -125,63 +158,18 @@ public:
             // and add them as edges to the back of the queue if marked with 1
             Node node = edgeNodes[expansionIndex++];
 
-            if(hasRight(node))
-            {
-                Node right = getRight(node);
-                unsigned int addr = getAddress(right);
-                if(!visitedNodes[addr])
-                {
-                    visitedNodes[addr] = 1;
-                    if(memory[addr])
-                    {
-                        edgeNodes.emplace_back(right);
-                    }
-                }
-            }
-            if(hasLeft(node))
-            {
-                Node left = getLeft(node);
-                unsigned int addr = getAddress(left);
-                if(!visitedNodes[addr])
-                {
-                    visitedNodes[addr] = 1;
-                    if(memory[addr])
-                    {
-                        edgeNodes.emplace_back(left);
-                    }
-                }
-            }
-            if(hasDown(node))
-            {
-                Node down = getDown(node);
-                unsigned int addr = getAddress(down);
-                if(!visitedNodes[addr])
-                {
-                    visitedNodes[addr] = 1;
-                    if(memory[addr])
-                    {
-                        edgeNodes.emplace_back(down);
-                    }
-                }
-            }
-            if(hasUp(node))
-            {
-                Node up = getUp(node);
-                unsigned int addr = getAddress(up);
-                if(!visitedNodes[addr])
-                {
-                    visitedNodes[addr] = 1;
-                    if(memory[addr])
-                    {
-                        edgeNodes.emplace_back(up);
-                    }
-                }
-            }
+            exploreDirection(edgeNodes, visitedNodes, node, Direction::RIGHT);
+            exploreDirection(edgeNodes, visitedNodes, node, Direction::LEFT);
+            exploreDirection(edgeNodes, visitedNodes, node, Direction::DOWN);
+            exploreDirection(edgeNodes, visitedNodes, node, Direction::UP);
         }
     }
 
+    // find all shapes formed by connected 1s in the matrix
     unsigned int findNbShapes() const
     {
+
+        // keep track of visited nodes, iterate trough all
         unsigned int nbShapes = 0;
         std::vector<VisitedNodesType> visitedNodes;
         std::vector<Node> edgeNodesWorkspace;
@@ -196,7 +184,7 @@ public:
                 visitedNodes[idx] = 1; // mark as visited
                 if(memory[idx])
                 {
-                    // if marked 1 - new shape BFS expansion starts from it
+                    // if marked 1 - its a new shape - do BFS expansion from it
                     expandShapeBFS(edgeNodesWorkspace, visitedNodes, idx);
                     ++nbShapes;
                 }
@@ -204,16 +192,6 @@ public:
         }
 
         return nbShapes;
-    }
-
-    MatrixValueType& at(unsigned int x, unsigned int y)
-    {
-        return memory[y*cols + x];
-    }
-
-    MatrixValueType& at(const Node& it)
-    {
-        return at(it.x, it.y);
     }
 
 protected:
